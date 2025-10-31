@@ -41,7 +41,9 @@ pip install -r requirements.txt
 ```
 
 The main dependencies are:
-- PyTorch 2.0.1
+- torch 2.8.0
+- torchaudio 2.8.0
+- torchvision 0.23.0
 - spaCy 3.5.3
 - NumPy 1.24.3
 - Matplotlib 3.7.1
