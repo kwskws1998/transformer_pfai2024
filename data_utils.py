@@ -1,5 +1,5 @@
 """
-Data utilities for loading and preprocessing Multi30k dataset - MPS optimized
+Data utilities for loading and preprocessing Multi30k dataset
 """
 import os
 import io
@@ -87,7 +87,7 @@ def build_counter(dataset: Dataset) -> Counter:
     return counter
 
 def create_data_iterators(config) -> Tuple[DataLoader, DataLoader, DataLoader, Vocab, Vocab]:
-    """Create data loaders and vocabularies - MPS OPTIMIZED VERSION"""
+    """Create data loaders and vocabularies"""
     
     # Create datasets
     train_data = TranslationDataset(root_dir=config.data_root, split='train')
@@ -99,10 +99,10 @@ def create_data_iterators(config) -> Tuple[DataLoader, DataLoader, DataLoader, V
     SRC_vocab = Vocab(counter, min_freq=config.min_freq)
     TRG_vocab = Vocab(counter, min_freq=config.min_freq)
     
-    # Define collate function with MPS optimizations
+    # Define collate function
     def collate_fn(batch):
-        src_batch = [torch.tensor(SRC_vocab.numericalize(item['SRC']), dtype=torch.long) for item in batch]
-        trg_batch = [torch.tensor(TRG_vocab.numericalize(item['TRG']), dtype=torch.long) for item in batch]
+        src_batch = [torch.tensor(SRC_vocab.numericalize(item['SRC'])) for item in batch]
+        trg_batch = [torch.tensor(TRG_vocab.numericalize(item['TRG'])) for item in batch]
         
         src_batch_padded = pad_sequence(src_batch, 
                                         padding_value=SRC_vocab.stoi['<pad>'], 
@@ -113,38 +113,24 @@ def create_data_iterators(config) -> Tuple[DataLoader, DataLoader, DataLoader, V
         
         return {'SRC': src_batch_padded, 'TRG': trg_batch_padded}
     
-    # Create data loaders WITH EXPLICIT num_workers=0 FOR MPS
-    # THIS IS WHERE num_workers IS SET!
-    train_iterator = DataLoader(
-        train_data, 
-        batch_size=config.batch_size, 
-        shuffle=True, 
-        collate_fn=collate_fn,
-        num_workers=0,  # ← CRITICAL FOR MPS - PREVENTS MULTIPROCESSING BUS ERROR
-        pin_memory=False,  # ← DISABLE PIN MEMORY FOR MPS
-        persistent_workers=False  # ← ENSURE NO PERSISTENT WORKERS
-    )
+    # Create data loaders
+    # Set num_workers=0 for Mac to avoid multiprocessing issues
+    num_workers = 0  # Mac M-series compatibility
     
-    valid_iterator = DataLoader(
-        valid_data, 
-        batch_size=config.batch_size, 
-        shuffle=True, 
-        collate_fn=collate_fn,
-        num_workers=0,  # ← CRITICAL FOR MPS
-        pin_memory=False,  # ← DISABLE FOR MPS
-        persistent_workers=False
-    )
-    
-    test_iterator = DataLoader(
-        test_data, 
-        batch_size=config.batch_size, 
-        shuffle=True, 
-        collate_fn=collate_fn,
-        num_workers=0,  # ← CRITICAL FOR MPS
-        pin_memory=False,  # ← DISABLE FOR MPS
-        persistent_workers=False
-    )
-    
-    print(f"DataLoaders created with num_workers=0 for MPS compatibility")
+    train_iterator = DataLoader(train_data, 
+                                batch_size=config.batch_size, 
+                                shuffle=True, 
+                                collate_fn=collate_fn,
+                                num_workers=num_workers)
+    valid_iterator = DataLoader(valid_data, 
+                               batch_size=config.batch_size, 
+                               shuffle=True, 
+                               collate_fn=collate_fn,
+                               num_workers=num_workers)
+    test_iterator = DataLoader(test_data, 
+                              batch_size=config.batch_size, 
+                              shuffle=True, 
+                              collate_fn=collate_fn,
+                              num_workers=num_workers)
     
     return train_iterator, valid_iterator, test_iterator, SRC_vocab, TRG_vocab

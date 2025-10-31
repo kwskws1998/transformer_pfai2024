@@ -1,12 +1,8 @@
 """
-Configuration settings for the Transformer model - MPS optimized version
+Configuration settings for the Transformer model
 """
 import torch
 from dataclasses import dataclass
-import os
-
-# Set environment variable for MPS fallback
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
 @dataclass
 class TransformerConfig:
@@ -25,14 +21,19 @@ class TransformerConfig:
     encoder_layers: int = 3
     decoder_layers: int = 3
     
-    # Training settings - Optimized for MPS
-    batch_size: int = 16  # Reduced from 32 for MPS stability
+    # Training settings
+    batch_size: int = 32  # Reduced for Mac M-series stability
     n_epochs: int = 100
     learning_rate: float = 5e-4
     gradient_clip: float = 1.0
     
-    # Force MPS device
-    device: str = 'mps' if torch.backends.mps.is_available() else 'cpu'
+    # Device settings
+    device: str = 'mps' if torch.mps.is_available() else 'cpu'
+    
+    def __post_init__(self):
+        # Check for MPS (Apple Silicon) support
+        if hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            self.device = 'mps'
     
     # Data paths
     data_root: str = './multi30k-datase/data/task1/raw'

@@ -1,13 +1,10 @@
 """
-Main script to train the Transformer model on Multi30k dataset - MPS Optimized
+Main script to train the Transformer model on Multi30k dataset
 """
 import os
 import torch
 import argparse
 from pathlib import Path
-
-# Set MPS environment variable BEFORE any imports
-os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
 from config import TransformerConfig
 from data_utils import create_data_iterators
@@ -20,20 +17,10 @@ from visualization import (
 )
 
 def main(args):
-    """Main training function - MPS optimized"""
+    """Main training function"""
     
     # Create config
     config = TransformerConfig()
-    
-    # Force MPS as requested
-    if torch.backends.mps.is_available():
-        config.device = 'mps'
-        print("\n✅ Using MPS (Metal Performance Shaders) backend")
-        print("   If you encounter errors, the environment variable")
-        print("   PYTORCH_ENABLE_MPS_FALLBACK=1 has been set")
-    else:
-        print("\n⚠️  MPS not available, using CPU")
-        config.device = 'cpu'
     
     # Override config with command line arguments
     if args.batch_size:
@@ -45,7 +32,7 @@ def main(args):
     if args.data_root:
         config.data_root = args.data_root
     
-    print("\nConfiguration:")
+    print("Configuration:")
     print("-" * 50)
     for key, value in config.__dict__.items():
         print(f"{key}: {value}")
@@ -57,7 +44,7 @@ def main(args):
         print("Please run: bash prepare_data.sh")
         return
     
-    # Create data iterators (now with num_workers=0 in data_utils.py)
+    # Create data iterators
     print("\nPreparing data...")
     train_iterator, valid_iterator, test_iterator, SRC_vocab, TRG_vocab = \
         create_data_iterators(config)
@@ -72,10 +59,6 @@ def main(args):
     print("\nInitializing model...")
     model = Transformer(SRC_vocab, TRG_vocab, config)
     
-    # Move model to MPS device
-    model = model.to(config.device)
-    print(f"Model moved to {config.device}")
-    
     # Count parameters
     total_params = sum(p.numel() for p in model.parameters())
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -84,34 +67,21 @@ def main(args):
     
     # Train model
     if not args.test_only:
-        print("\nStarting training on MPS...")
-        print("Note: If training fails, try reducing batch_size with --batch_size 8")
+        print("\nStarting training...")
         save_path = args.save_path if args.save_path else "transformer_best.pt"
+        train_losses, valid_losses = train_model(
+            model, 
+            train_iterator, 
+            valid_iterator, 
+            config,
+            save_path=save_path
+        )
         
-        try:
-            train_losses, valid_losses = train_model(
-                model, 
-                train_iterator, 
-                valid_iterator, 
-                config,
-                save_path=save_path
-            )
-            
-            # Plot training curves
-            if args.plot:
-                print("\nPlotting training curves...")
-                plot_training_curves(train_losses, valid_losses, 
-                                   save_path="training_curves.png")
-                
-        except RuntimeError as e:
-            if "MPS" in str(e) or "mps" in str(e):
-                print(f"\n❌ MPS Error encountered: {e}")
-                print("\nTry these solutions:")
-                print("1. Reduce batch size: --batch_size 8")
-                print("2. Restart Python kernel and try again")
-                print("3. Update PyTorch: pip install --upgrade torch")
-            else:
-                raise e
+        # Plot training curves
+        if args.plot:
+            print("\nPlotting training curves...")
+            plot_training_curves(train_losses, valid_losses, 
+                               save_path="training_curves.png")
     
     # Load best model if saved
     if args.save_path and os.path.exists(args.save_path):
@@ -147,7 +117,7 @@ def main(args):
     print("\nTraining complete!")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Transformer on Multi30k - MPS Optimized")
+    parser = argparse.ArgumentParser(description="Train Transformer on Multi30k")
     
     # Training arguments
     parser.add_argument("--batch_size", type=int, help="Batch size")

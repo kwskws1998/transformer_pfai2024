@@ -21,7 +21,7 @@ class Translator:
             model_path: Path to saved model checkpoint
             vocab_path: Path to saved vocabularies (optional)
         """
-        self.device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+        self.device = torch.device('mps' if torch.mps.is_available() else 'cpu')
         
         # Load vocabularies
         if vocab_path:
