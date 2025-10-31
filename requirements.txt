@@ -1,0 +1,15 @@
+# Core dependencies
+torch==2.0.1
+spacy==3.5.3
+matplotlib==3.7.1
+numpy==1.24.3
+tqdm==4.65.0
+easydict==1.10
+
+# Optional for visualization (if needed)
+regex==2023.6.3
+IPython==8.14.0
+
+# Note: You'll also need to download spaCy models after installation:
+# python -m spacy download de_core_news_sm
+# python -m spacy download en_core_web_sm
